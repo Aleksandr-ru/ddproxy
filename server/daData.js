@@ -50,7 +50,7 @@ module.exports.query = function(url, data) {
     const { redis: { expire }, urlMap } = config;
     const hash = makeHash(url, data);
     const key = `q:${hash}`;
-    const ttl = urlMap[url] || expire;
+    const ttl = urlMap[url] && urlMap[url].expire || expire;
  
     if(!data.query) {
         throw new Error('No query in data');
@@ -66,6 +66,11 @@ module.exports.query = function(url, data) {
                     resolve(body);
                     client.setex(key, ttl, JSON.stringify(body));
                     console.log('Query %o cached for %s, key %s', { url, data }, formatSeconds(ttl), key);
+                    if(urlMap[url] && urlMap[url].additionalKey && typeof urlMap[url].additionalKey === 'function') {
+                        const additionalKey = urlMap[url].additionalKey(data);
+                        client.setex(additionalKey, ttl, key);
+                        console.log('Additional key created %s', additionalKey);
+                    }
                 }, reject);
             }
         });

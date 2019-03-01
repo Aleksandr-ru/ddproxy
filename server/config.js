@@ -20,6 +20,9 @@ module.exports = {
         expire: REDIS_EXPIRE || defaultExpire
     },
     urlMap: {
-        '/suggestions/api/4_1/rs/findById/party': (REDIS_EXPIRE || defaultExpire) * 60 * 24 * 30 // month
+        '/suggestions/api/4_1/rs/findById/party': {
+            expire: (REDIS_EXPIRE || defaultExpire) * 60 * 24 * 30, // month
+            additionalKey: function(data) { return `inn:${data.query}`; }
+        }
     }
 };
