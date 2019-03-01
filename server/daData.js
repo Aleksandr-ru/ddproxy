@@ -2,6 +2,7 @@ const md5 = require('js-md5');
 const redis = require('redis');
 const request = require('request');
 const config = require('./config');
+const { formatSeconds } = require('./helpers');
 
 const { redis: { options } } = config;
 const client = redis.createClient(options);
@@ -64,7 +65,7 @@ module.exports.query = function(url, data) {
                 ddQuery(url, data).then(body => {
                     resolve(body);
                     client.setex(key, ttl, JSON.stringify(body));
-                    console.log('Query %o cached for %d sec., key %s', { url, data }, ttl, key);
+                    console.log('Query %o cached for %s, key %s', { url, data }, formatSeconds(ttl), key);
                 }, reject);
             }
         });
