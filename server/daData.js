@@ -1,6 +1,8 @@
+const md5 = require('js-md5');
 const redis = require('redis');
 const request = require('request');
 const config = require('./config');
+const { formatSeconds } = require('./helpers');
 
 const { redis: { options } } = config;
 const client = redis.createClient(options);
@@ -39,24 +41,31 @@ function ddQuery(url, data) {
     });
 }
 
-module.exports.getOrgByInn = function(url, data) {
-    const { redis: { expire } } = config;
-    const inn = data.query;
-    const key = `inn:${inn}`;
-    if(!inn) {
-        throw new Error('No inn in query');
+function makeHash(url, data) {
+    const str = JSON.stringify({ url, data });
+    return md5(str);
+}
+
+module.exports.query = function(url, data) {
+    const { redis: { expire }, urlMap } = config;
+    const hash = makeHash(url, data);
+    const key = `q:${hash}`;
+    const ttl = urlMap[url] || expire;
+ 
+    if(!data.query) {
+        throw new Error('No query in data');
     }
     return new Promise((resolve, reject) => {
         client.get(key, (err, result) => {
             if (result) {            
-                console.log('Inn %s found in cache', inn);
+                console.log('Query %o found in cache by key %s', { url, data }, key);
                 resolve(JSON.parse(result));
             }
             else {
                 ddQuery(url, data).then(body => {
                     resolve(body);
-                    client.setex(key, expire, JSON.stringify(body));
-                    console.log('Inn %s is now cached', inn);
+                    client.setex(key, ttl, JSON.stringify(body));
+                    console.log('Query %o cached for %s, key %s', { url, data }, formatSeconds(ttl), key);
                 }, reject);
             }
         });

@@ -1,19 +1,12 @@
 const http = require('http');
 const config = require('./config');
 const postHandler = require('./postHandler');
-const urlHandler = require('./urlHandler');
+const daData = require('./daData');
 
 const requestHandler = (request, response) => {
-    const url = request.url;
-    let postData = {};
+    const url = request.url.replace(/\/$/, '');;
     postHandler(request).then(data => {
-        postData = data;
-        return urlHandler(url);
-    }).then(handler => {
-        if(typeof handler !== 'function') {
-            throw new Error('Handler is not a function');
-        }
-        return handler(url, postData);
+        return daData.query(url, data);
     }).then(data => {
         response.writeHead(200, {'Content-Type': 'application/json'});
         const json = JSON.stringify(data);
@@ -36,4 +29,4 @@ server.listen(port, (err) => {
         return console.log('Server error:', err)
     }
     console.log(`Dadata caching proxy server is listening on port ${port}`)
-})
+});
