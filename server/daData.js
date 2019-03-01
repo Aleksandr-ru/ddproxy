@@ -68,8 +68,13 @@ module.exports.query = function(url, data) {
                     console.log('Query %o cached for %s, key %s', { url, data }, formatSeconds(ttl), key);
                     if(urlMap[url] && urlMap[url].additionalKey && typeof urlMap[url].additionalKey === 'function') {
                         const additionalKey = urlMap[url].additionalKey(data);
-                        client.setex(additionalKey, ttl, key);
-                        console.log('Additional key created %s', additionalKey);
+                        if(typeof additionalKey === 'string' && additionalKey.length >= 3 /* a:b */) {
+                            client.setex(additionalKey, ttl, key);
+                            console.log('Additional key created %s', additionalKey);
+                        }
+                        else {
+                            console.log('Additional key was not created');
+                        }
                     }
                 }, reject);
             }
