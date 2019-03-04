@@ -66,7 +66,7 @@ module.exports.query = function(url, data) {
                     resolve(body);
                     client.setex(key, ttl, JSON.stringify(body));
                     console.log('Query %o cached for %s, key %s', { url, data }, formatSeconds(ttl), key);
-                    if(urlMap[url] && urlMap[url].additionalKey && typeof urlMap[url].additionalKey === 'function') {
+                    if(urlMap[url] && typeof urlMap[url].additionalKey === 'function') {
                         const additionalKey = urlMap[url].additionalKey(data);
                         if(typeof additionalKey === 'string' && additionalKey.match(/^[^:]+:[^:]+$/) /* a:b */) {
                             client.setex(additionalKey, ttl, key);
