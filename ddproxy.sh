@@ -1,7 +1,13 @@
 #! /bin/bash
 
-LOG=/tmp/ddproxy.log
-PID=/tmp/ddproxy.pid
+if [ "$EUID" -ne 0 ]
+then
+    LOG=/tmp/ddproxy.log
+    PID=/tmp/ddproxy.pid
+else 
+    LOG=/var/log/ddproxy.log
+    PID=/var/run/ddproxy.pid
+fi
 APP=server/index.js
 NODE=node
 SCRIPT=`readlink -f $0`
