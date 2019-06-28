@@ -1,8 +1,12 @@
 require('dotenv').config();
 
-const { SERVER_PORT, DADATA_BASEURL, DADATA_TOKEN, REDIS_OPTIONS_URL, REDIS_EXPIRE, REDIS_EXPIRE_INN } = process.env;
+const { APP_ID, APP_LIMIT, SERVER_PORT, DADATA_BASEURL, DADATA_TOKEN, REDIS_OPTIONS_URL, REDIS_EXPIRE, REDIS_EXPIRE_INN } = process.env;
 
 module.exports = {
+    app: {
+        id: APP_ID || 'default',
+        limit: APP_LIMIT || 0,
+    },
     server: {
         port: SERVER_PORT || 3000,
     },

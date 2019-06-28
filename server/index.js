@@ -22,11 +22,12 @@ const requestHandler = (request, response) => {
         response.end(json);
     });
 }
+const { app: { id }} = config;
 const server = http.createServer(requestHandler);
 const port = config.server.port;
 server.listen(port, (err) => {
     if (err) {
         return console.log('Server error:', err)
     }
-    console.log(`Dadata caching proxy server is listening on port ${port}`)
+    console.log(`Dadata caching proxy server [${id}] is listening on port ${port}`)
 });

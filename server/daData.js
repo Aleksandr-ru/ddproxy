@@ -10,6 +10,32 @@ client.on('error', (err) => {
     console.log('Redis error:', err);
 });
 
+function checkLimit() {
+    const { app: { id, limit }} = config;
+    if (limit == 0) { // limit is string
+        return Promise.resolve();
+    }
+    const date = new Date().toISOString().slice(0, 10);
+    const key = `cnt:${id}:${date}`;
+    return new Promise((resolve, reject) => {
+        client.get(key, (err, result) => {
+            // не обрабатываем ошибку чтоб сервер продолжал работать даже если отвалился редис
+            if (result >= limit) {
+                console.log('Query limit %d reached for app %s', limit, id);
+                reject(`Query limit reached, come back after midnight`);
+            }
+            else if (result) {
+                client.incr(key);
+                resolve();
+            }
+            else {
+                client.setex(key, 86400 + 600, 1);
+                resolve();
+            }
+        });
+    });
+}
+
 function ddQuery(url, data) {
     const { daData: { baseUrl, token } } = config;
     return new Promise((resolve, reject) => {
@@ -57,12 +83,15 @@ module.exports.query = function(url, data) {
     }
     return new Promise((resolve, reject) => {
         client.get(key, (err, result) => {
+            // не обрабатываем ошибку чтоб сервер продолжал работать даже если отвалился редис
             if (result) {            
                 console.log('Query %o found in cache by key %s', { url, data }, key);
                 resolve(JSON.parse(result));
             }
             else {
-                ddQuery(url, data).then(body => {
+                checkLimit()
+                .then(() => ddQuery(url, data))
+                .then(body => {
                     resolve(body);
                     client.setex(key, ttl, JSON.stringify(body));
                     console.log('Query %o cached for %s, key %s', { url, data }, formatSeconds(ttl), key);
@@ -76,7 +105,8 @@ module.exports.query = function(url, data) {
                             console.log('Additional key was not created');
                         }
                     }
-                }, reject);
+                })
+                .then(null, reject);
             }
         });
     });
