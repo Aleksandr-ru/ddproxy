@@ -5,7 +5,7 @@ const { makeHash, formatSeconds } = require('./helpers');
 
 function checkLimit() {
     const { app: { id, limit }} = config;
-    if (limit == 0) { // limit is string
+    if (limit == 0 || limit == '') { // limit is string
         return Promise.resolve();
     }
     const date = new Date().toISOString().slice(0, 10);
@@ -13,7 +13,7 @@ function checkLimit() {
     return new Promise((resolve, reject) => {
         redis.get(key, (err, result) => {
             // не обрабатываем ошибку чтоб сервер продолжал работать даже если отвалился редис
-            if (result >= limit) {
+            if (result && parseInt(result) >= parseInt(limit)) {
                 console.log('Query limit %d reached for app %s', limit, id);
                 reject(`Query limit reached, come back after midnight`);
             }
