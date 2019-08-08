@@ -1,3 +1,10 @@
+const md5 = require('js-md5');
+
+module.exports.makeHash = function(url, data) {
+    const str = JSON.stringify({ url, data });
+    return md5(str);
+};
+
 module.exports.formatSeconds = function(sec) {
     const hour = 60 * 60;
     const day = hour * 24;

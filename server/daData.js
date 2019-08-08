@@ -1,14 +1,7 @@
-const md5 = require('js-md5');
-const redis = require('redis');
 const request = require('request');
 const config = require('./config');
-const { formatSeconds } = require('./helpers');
-
-const { redis: { options } } = config;
-const client = redis.createClient(options);
-client.on('error', (err) => {
-    console.log('Redis error:', err);
-});
+const redis = require('./redis');
+const { makeHash, formatSeconds } = require('./helpers');
 
 function checkLimit() {
     const { app: { id, limit }} = config;
@@ -18,18 +11,18 @@ function checkLimit() {
     const date = new Date().toISOString().slice(0, 10);
     const key = `cnt:${id}:${date}`;
     return new Promise((resolve, reject) => {
-        client.get(key, (err, result) => {
+        redis.get(key, (err, result) => {
             // не обрабатываем ошибку чтоб сервер продолжал работать даже если отвалился редис
             if (result >= limit) {
                 console.log('Query limit %d reached for app %s', limit, id);
                 reject(`Query limit reached, come back after midnight`);
             }
             else if (result) {
-                client.incr(key);
+                redis.incr(key);
                 resolve();
             }
             else {
-                client.setex(key, 86400 + 600, 1);
+                redis.setex(key, 86400 + 600, 1);
                 resolve();
             }
         });
@@ -67,11 +60,6 @@ function ddQuery(url, data) {
     });
 }
 
-function makeHash(url, data) {
-    const str = JSON.stringify({ url, data });
-    return md5(str);
-}
-
 module.exports.query = function(url, data) {
     const { redis: { expire }, urlMap } = config;
     const hash = makeHash(url, data);
@@ -82,7 +70,7 @@ module.exports.query = function(url, data) {
         throw new Error('No query in data');
     }
     return new Promise((resolve, reject) => {
-        client.get(key, (err, result) => {
+        redis.get(key, (err, result) => {
             // не обрабатываем ошибку чтоб сервер продолжал работать даже если отвалился редис
             if (result) {            
                 console.log('Query %o found in cache by key %s', { url, data }, key);
@@ -93,12 +81,12 @@ module.exports.query = function(url, data) {
                 .then(() => ddQuery(url, data))
                 .then(body => {
                     resolve(body);
-                    client.setex(key, ttl, JSON.stringify(body));
+                    redis.setex(key, ttl, JSON.stringify(body));
                     console.log('Query %o cached for %s, key %s', { url, data }, formatSeconds(ttl), key);
                     if(urlMap[url] && typeof urlMap[url].additionalKey === 'function') {
                         const additionalKey = urlMap[url].additionalKey(data);
                         if(typeof additionalKey === 'string' && additionalKey.match(/^[^:]+:[^:]+$/) /* a:b */) {
-                            client.setex(additionalKey, ttl, key);
+                            redis.setex(additionalKey, ttl, key);
                             console.log('Additional key created %s', additionalKey);
                         }
                         else {

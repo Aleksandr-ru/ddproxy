@@ -19,6 +19,7 @@ module.exports = {
         options: {
             url: REDIS_OPTIONS_URL || 'redis://127.0.0.1:6379', 
             // [redis[s]:]//[[user][:password@]][host][:port][/db-number]
+            // для кластера 'host:port,host:port,...'
         },
         expire: REDIS_EXPIRE || 60
     },
