@@ -64,7 +64,8 @@ module.exports.query = function(url, data) {
     const { redis: { expire }, urlMap } = config;
     const hash = makeHash(url, data);
     const key = `q:${hash}`;
-    const ttl = urlMap[url] && urlMap[url].expire || expire;
+    const ttlFn = urlMap[url] && urlMap[url].expire || expire;
+    const keyFn = urlMap[url] && urlMap[url].additionalKey;
  
     if(!data.query) {
         throw new Error('No query in data');
@@ -81,10 +82,11 @@ module.exports.query = function(url, data) {
                 .then(() => ddQuery(url, data))
                 .then(body => {
                     resolve(body);
+                    const ttl = (typeof ttlFn === 'function') ? ttlFn(data, body) : ttlFn;
                     redis.setex(key, ttl, JSON.stringify(body));
                     console.log('Query %o cached for %s, key %s', { url, data }, formatSeconds(ttl), key);
-                    if(urlMap[url] && typeof urlMap[url].additionalKey === 'function') {
-                        const additionalKey = urlMap[url].additionalKey(data);
+                    if(typeof keyFn === 'function') {
+                        const additionalKey = keyFn(data, body);
                         if(typeof additionalKey === 'string' && additionalKey.match(/^[^:]+:[^:]+$/) /* a:b */) {
                             redis.setex(additionalKey, ttl, key);
                             console.log('Additional key created %s', additionalKey);
