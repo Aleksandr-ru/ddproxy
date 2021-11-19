@@ -1,6 +1,6 @@
 {
   "name": "ddproxy",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Local DaData proxy with Redis cache",
   "main": "server/index.js",
   "scripts": {
