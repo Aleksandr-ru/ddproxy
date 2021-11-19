@@ -6,8 +6,14 @@ module.exports = function (request) {
                 body += chunk.toString(); // convert Buffer to string
             });
             request.on('end', () => {
-                const o = JSON.parse(body);
-                resolve(o);
+                try {
+                    const o = JSON.parse(body);
+                    resolve(o);
+                }
+                catch (e) {
+                    console.log(e);
+                    reject('Invalid JSON');
+                }
             });
         }
         else {

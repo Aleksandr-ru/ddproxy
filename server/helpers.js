@@ -45,3 +45,14 @@ module.exports.isInnValid = function(inn) {
     }
     return false;
 }
+
+/**
+ * Дата в локальной таймзоне
+ * @returns {string} YYYY-MM-DD
+ */
+module.exports.getDate = function () {
+    const dt = new Date();
+    return dt.getFullYear() +
+        '-' + ('0' + (dt.getMonth() + 1)).slice(-2) +
+        '-' + ('0' + dt.getDate()).slice(-2);
+}

@@ -1,28 +1,36 @@
 const request = require('request');
 const config = require('./config');
 const redis = require('./redis');
-const { makeHash, formatSeconds } = require('./helpers');
+const { makeHash, formatSeconds, getDate } = require('./helpers');
 
-function checkLimit() {
+function counterKey(date)
+{
+    const { app: { id }} = config;
+    return `cnt:${id}:${date}`;
+}
+
+function checkLimit(date) {
     const { app: { id, limit }} = config;
     if (limit == 0 || limit == '') { // limit is string
         return Promise.resolve();
     }
-    const date = new Date().toISOString().slice(0, 10);
-    const key = `cnt:${id}:${date}`;
+    const key = counterKey(date);
     return new Promise((resolve, reject) => {
         redis.get(key, (err, result) => {
-            // не обрабатываем ошибку чтоб сервер продолжал работать даже если отвалился редис
+            if (err) {
+                // не обрабатываем ошибку чтоб сервер продолжал работать даже если отвалился редис
+                console.log(err);
+            }
             if (result && parseInt(result) >= parseInt(limit)) {
                 console.log('Query limit %d reached for app %s', limit, id);
                 reject(`Query limit reached, come back after midnight`);
             }
-            else if (result) {
-                redis.incr(key);
+            else if (result === null) {
+                redis.setex(key, 86400 + 600, 0);
                 resolve();
             }
             else {
-                redis.setex(key, 86400 + 600, 1);
+                // инкремент только после успешного запроса
                 resolve();
             }
         });
@@ -66,22 +74,31 @@ module.exports.query = function(url, data) {
     const key = `q:${hash}`;
     const ttlFn = urlMap[url] && urlMap[url].expire || expire;
     const keyFn = urlMap[url] && urlMap[url].additionalKey;
+    const queryDate = getDate();
  
     if(!data.query) {
         throw new Error('No query in data');
     }
     return new Promise((resolve, reject) => {
         redis.get(key, (err, result) => {
-            // не обрабатываем ошибку чтоб сервер продолжал работать даже если отвалился редис
+            if (err) {
+                // не обрабатываем ошибку чтоб сервер продолжал работать даже если отвалился редис
+                console.log(err);
+            }
             if (result) {            
                 console.log('Query %o found in cache by key %s', { url, data }, key);
                 resolve(JSON.parse(result));
             }
             else {
-                checkLimit()
+                checkLimit(queryDate)
                 .then(() => ddQuery(url, data))
                 .then(body => {
                     resolve(body);
+
+                    // запрос успешен, увеличиваем счетчик
+                    const cntKey = counterKey(queryDate);
+                    redis.incr(cntKey);
+
                     const ttl = (typeof ttlFn === 'function') ? ttlFn(data, body) : ttlFn;
                     redis.setex(key, ttl, JSON.stringify(body));
                     console.log('Query %o cached for %s, key %s', { url, data }, formatSeconds(ttl), key);
